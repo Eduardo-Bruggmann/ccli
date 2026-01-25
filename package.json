@@ -1,0 +1,15 @@
+{
+  "name": "ccli",
+  "version": "1.0.0",
+  "description": "Chat Command Line Interface using WebSockets (TypeScript)",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [
+    "cli",
+    "chat",
+    "websocket",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT"
+}
