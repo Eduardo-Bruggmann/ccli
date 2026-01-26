@@ -1,9 +1,13 @@
 {
   "name": "ccli",
+  "private": true,
   "version": "1.0.0",
   "description": "Chat Command Line Interface using WebSockets (TypeScript)",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "server": "nodemon --watch src/server --exec ts-node src/server/index.ts",
+    "client": "ts-node src/client/index.ts"
+  },
   "keywords": [
     "cli",
     "chat",
@@ -11,5 +15,16 @@
     "typescript"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "undici-types": "^7.19.1",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.10",
+    "@types/ws": "^8.18.1",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
 }
