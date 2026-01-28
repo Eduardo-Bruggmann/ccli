@@ -8,7 +8,7 @@ export function startServer(port = 8080) {
   wss.on('connection', (socket: WebSocket) => {
     const client = {
       socket,
-      nickname: 'guest',
+      nickname: null,
       channel: null,
     }
 

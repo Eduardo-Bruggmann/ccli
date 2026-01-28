@@ -2,7 +2,7 @@ import WebSocket from 'ws'
 
 export type Client = {
   socket: WebSocket
-  nickname: string
+  nickname: string | null
   channel: string | null
 }
 

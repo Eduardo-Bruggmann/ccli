@@ -1,8 +1,7 @@
-export type ClientMessage =
-  | { type: 'join'; payload: { channel: string } }
-  | { type: 'message'; payload: { text: string } }
+import { z } from 'zod'
+import { ClientMessageSchema, ServerMessageSchema } from './schemas'
 
-export type ServerMessage =
-  | { type: 'message'; payload: { from: string; text: string } }
-  | { type: 'system'; payload: { text: string } }
-  | { type: 'error'; payload: { text: string } }
+export type ClientMessage = z.infer<typeof ClientMessageSchema>
+export type ServerMessage = z.infer<typeof ServerMessageSchema>
+
+export { ClientMessageSchema, ServerMessageSchema }
