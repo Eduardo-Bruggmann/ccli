@@ -1,5 +1,6 @@
 import { socket, onServerMessage, onOpen } from './socket'
 import { prompt, rl } from './input'
+import { handleUserInput } from './commands'
 
 let readyForChat = false
 
@@ -45,13 +46,7 @@ onServerMessage(async (msg) => {
 
     rl.on('line', (line: string) => {
       if (!line.trim()) return
-
-      socket.send(
-        JSON.stringify({
-          type: 'message',
-          payload: { text: line },
-        }),
-      )
+      handleUserInput(line)
     })
   }
 })

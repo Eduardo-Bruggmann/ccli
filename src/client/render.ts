@@ -6,10 +6,6 @@ export function renderMessage(msg: ServerMessage) {
       console.log(`[${msg.payload.from}] ${msg.payload.text}`)
       break
 
-    case 'system':
-      console.log(`* ${msg.payload.text} *`)
-      break
-
     case 'error':
       console.log(`! ${msg.payload.text} !`)
       break
@@ -37,6 +33,20 @@ export function renderMessage(msg: ServerMessage) {
       }
 
       console.log('')
+      break
+
+    case 'user_joined':
+      console.log(`* ${msg.payload.nickname} joined #${msg.payload.channel} *`)
+      break
+
+    case 'user_left':
+      console.log(`* ${msg.payload.nickname} left the chat *`)
+      break
+
+    case 'nick_changed':
+      console.log(
+        `* ${msg.payload.oldNick} is now known as ${msg.payload.newNick} *`,
+      )
       break
   }
 }

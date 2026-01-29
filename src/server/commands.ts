@@ -1,5 +1,6 @@
 import { State, Client } from './state'
 import { ClientMessageSchema, ServerMessage } from '../shared/protocol'
+import { MAX_HISTORY } from './utils'
 
 export function handleMessage(state: State, client: Client, raw: string) {
   let parsed: unknown
@@ -24,13 +25,8 @@ export function handleMessage(state: State, client: Client, raw: string) {
   const msg = result.data
 
   if (msg.type === 'set_nick') {
-    if (client.nickname) {
-      send(client, {
-        type: 'error',
-        payload: { text: 'Nickname already set' },
-      })
-      return
-    }
+    const hadNickname = client.nickname !== null
+    const oldNick = client.nickname
 
     const nicknameTaken = [...state.clients.values()].some(
       (c) => c.nickname === msg.payload.nickname,
@@ -46,19 +42,31 @@ export function handleMessage(state: State, client: Client, raw: string) {
 
     client.nickname = msg.payload.nickname
 
-    send(client, {
-      type: 'welcome',
-      payload: {
-        nickname: client.nickname,
-        users: getUsers(state),
-        channels: getChannels(state),
-      },
-    })
+    if (hadNickname && oldNick) {
+      broadcast(state, client.channel!, {
+        type: 'nick_changed',
+        payload: {
+          oldNick,
+          newNick: client.nickname,
+        },
+      })
+    }
+
+    if (!hadNickname) {
+      send(client, {
+        type: 'welcome',
+        payload: {
+          nickname: client.nickname,
+          users: getUsers(state),
+          channels: getChannels(state),
+        },
+      })
+    }
 
     return
   }
 
-  if (!client.nickname) {
+  if (!client.nickname && (msg.type === 'message' || msg.type === 'join')) {
     send(client, {
       type: 'error',
       payload: { text: 'Set a nickname first' },
@@ -67,17 +75,33 @@ export function handleMessage(state: State, client: Client, raw: string) {
   }
 
   switch (msg.type) {
-    case 'join':
+    case 'join': {
       client.channel = msg.payload.channel
 
-      send(client, {
-        type: 'system',
-        payload: { text: `Joined channel ${client.channel}` },
+      if (!state.channels.has(client.channel)) {
+        state.channels.set(client.channel, [])
+      }
+
+      const history = state.channels.get(client.channel)!
+
+      for (const message of history) {
+        send(client, message)
+      }
+
+      broadcast(state, client.channel, {
+        type: 'user_joined',
+        payload: {
+          nickname: client.nickname ?? '',
+          channel: client.channel,
+        },
       })
       break
+    }
 
     case 'message':
-      if (!client.channel) {
+      const channel = client.channel
+
+      if (!channel) {
         send(client, {
           type: 'error',
           payload: { text: 'Join a channel first' },
@@ -85,13 +109,26 @@ export function handleMessage(state: State, client: Client, raw: string) {
         return
       }
 
-      broadcast(state, client.channel, {
+      if (!state.channels.has(channel)) {
+        state.channels.set(channel, [])
+      }
+
+      const message = {
         type: 'message',
         payload: {
-          from: client.nickname,
+          from: client.nickname ?? '',
           text: msg.payload.text,
         },
-      })
+      } as const
+
+      const history = state.channels.get(channel)!
+      history.push(message)
+
+      if (history.length > MAX_HISTORY) {
+        history.shift()
+      }
+
+      broadcast(state, channel, message)
       break
   }
 }

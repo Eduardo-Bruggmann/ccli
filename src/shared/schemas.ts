@@ -65,9 +65,34 @@ export const ServerWelcomeMessageSchema = z.object({
   }),
 })
 
+export const ServerUserJoinedSchema = z.object({
+  type: z.literal('user_joined'),
+  payload: z.object({
+    nickname: z.string(),
+    channel: z.string(),
+  }),
+})
+
+export const ServerUserLeftSchema = z.object({
+  type: z.literal('user_left'),
+  payload: z.object({
+    nickname: z.string(),
+  }),
+})
+
+export const ServerNickChangedSchema = z.object({
+  type: z.literal('nick_changed'),
+  payload: z.object({
+    oldNick: z.string(),
+    newNick: z.string(),
+  }),
+})
+
 export const ServerMessageSchema = z.union([
   ServerChatMessageSchema,
-  ServerSystemMessageSchema,
   ServerErrorMessageSchema,
   ServerWelcomeMessageSchema,
+  ServerUserJoinedSchema,
+  ServerUserLeftSchema,
+  ServerNickChangedSchema,
 ])

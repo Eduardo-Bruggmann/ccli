@@ -19,7 +19,20 @@ export function startServer(port = 8080) {
     })
 
     socket.on('close', () => {
+      const nickname = client.nickname
+
       state.clients.delete(socket)
+
+      if (nickname) {
+        for (const c of state.clients.values()) {
+          c.socket.send(
+            JSON.stringify({
+              type: 'user_left',
+              payload: { nickname },
+            }),
+          )
+        }
+      }
     })
   })
 
