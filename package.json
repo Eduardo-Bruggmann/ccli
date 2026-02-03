@@ -5,8 +5,8 @@
   "description": "Chat Command Line Interface using WebSockets (TypeScript)",
   "main": "index.js",
   "scripts": {
-    "server": "nodemon --watch src/server --exec ts-node src/server/index.ts",
-    "client": "ts-node src/client/index.ts"
+    "server": "nodemon --watch packages/server --exec \"ts-node -r tsconfig-paths/register --project tsconfig.json\" packages/server/src/index.ts",
+    "client": "ts-node -r tsconfig-paths/register --project packages/client/tsconfig.json packages/client/src/index.ts"
   },
   "keywords": [
     "cli",
@@ -17,6 +17,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@inquirer/prompts": "^8.2.0",
     "undici-types": "^7.19.1",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
@@ -26,6 +27,7 @@
     "@types/ws": "^8.18.1",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   }
 }
