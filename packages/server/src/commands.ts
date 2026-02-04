@@ -2,39 +2,17 @@ import { ClientMessage, ClientMessageSchema } from '@shared/protocol'
 import { zodErrorMessage } from './utils'
 import { Client, state } from './state'
 
-export function validateMessage(client: Client, text: string) {
-  let parsed: unknown
+export function handleMessage(client: Client, text: string) {
+  const msg = validateMessage(client, text)
 
-  try {
-    parsed = JSON.parse(text)
-  } catch {
-    send(client, {
-      type: 'error',
-      payload: { message: 'Invalid JSON received' },
-    })
-    return
-  }
+  if (!msg) return
 
-  const result = ClientMessageSchema.safeParse(parsed)
-  if (!result.success) {
-    send(client, {
-      type: 'error',
-      payload: { message: zodErrorMessage(result.error) },
-    })
-    return
-  }
-
-  const msg = result.data
-  handleMessage(client, msg)
-}
-
-function handleMessage(client: Client, msg: ClientMessage) {
   switch (msg.type) {
     case 'check_nick': {
       const nick = msg.payload.nickname
-      const taken = state.clients.has(nick)
+      const taken = state.listUsers().includes(nick)
 
-      send(client, {
+      client.send({
         type: 'nick_check',
         payload: {
           nickname: nick,
@@ -47,9 +25,9 @@ function handleMessage(client: Client, msg: ClientMessage) {
     case 'set_nick':
       const nick = msg.payload.nickname
 
-      const taken = state.clients.has(nick)
+      const taken = state.listUsers().includes(nick)
       if (taken) {
-        send(client, {
+        client.send({
           type: 'error',
           payload: { message: 'Nickname already taken' },
         })
@@ -57,41 +35,70 @@ function handleMessage(client: Client, msg: ClientMessage) {
       }
 
       client.nickname = nick
-      state.clients.set(nick, client)
+      state.addClient(client)
 
       sendMenu(client)
       break
 
     case 'join':
       if (client.currentChannel) {
-        const channel = state.channels.get(client.currentChannel)
-        channel?.clients.delete(client.nickname!)
+        const channel = state.getOrCreateChannel(client.currentChannel)
+        channel.removeClient(client.nickname!)
       }
 
-      client.currentChannel = msg.payload.channel
-      state.channels.get(client.currentChannel)?.clients.add(client.nickname!)
+      state.joinChannel(client, msg.payload.channel)
       console.log(client.nickname + ' joined channel ' + client.currentChannel)
       break
 
     case 'message':
-      send(client, msg.payload.text)
+      client.send({
+        type: 'message',
+        payload: { text: msg.payload.text },
+      })
       console.log(`Received message`)
       break
   }
 }
 
-function send(client: Client, msg: unknown) {
-  client.socket.send(JSON.stringify(msg))
+function validateMessage(
+  client: Client,
+  text: string,
+): ClientMessage | undefined {
+  let parsed: unknown
+
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    const err = {
+      type: 'error',
+      payload: { message: 'Invalid JSON received' },
+    }
+
+    client.send(err)
+    return
+  }
+
+  const result = ClientMessageSchema.safeParse(parsed)
+
+  if (!result.success) {
+    const err = {
+      type: 'error',
+      payload: { message: zodErrorMessage(result.error) },
+    }
+
+    client.send(err)
+    return
+  }
+
+  return result.data
 }
 
 function sendMenu(client: Client) {
-  const users = [...state.clients.keys()].filter(
-    nick => nick !== client.nickname,
-  )
+  const users = state.listUsers(client.nickname!)
 
-  const channels = [...state.channels.keys()]
+  const channels = state.listChannels()
 
-  send(client, {
+  client.send({
     type: 'menu',
     payload: {
       self: client.nickname!,

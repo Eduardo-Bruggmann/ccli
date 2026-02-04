@@ -1,4 +1,5 @@
 import { input } from '@inquirer/prompts'
+import { NO_PREFIX_THEME } from './uiTheme'
 
 export async function prompt(
   text: string,
@@ -10,6 +11,7 @@ export async function prompt(
     await input({
       message: text,
       validate: options?.validate,
+      theme: NO_PREFIX_THEME,
     })
   ).trim()
 }

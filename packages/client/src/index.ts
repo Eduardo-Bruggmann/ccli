@@ -1,12 +1,12 @@
+import { socket, onJsonMessage, onceJsonMessage, sendJson } from './socket'
 import { NicknameSchema } from '@shared/schemas'
+import { clearScreen } from './utils'
 import { showMenu } from './menu'
 import { prompt } from './input'
 import { WebSocket } from 'ws'
 
-export const socket = new WebSocket(`ws://localhost:8080`)
-
 socket.on('open', async () => {
-  console.clear()
+  clearScreen()
   console.log('Connected to server')
 
   while (true) {
@@ -20,12 +20,10 @@ socket.on('open', async () => {
         const action = await showMenu(payload.users, payload.channels)
 
         if (action.type === 'join') {
-          socket.send(
-            JSON.stringify({
-              type: 'join',
-              payload: { channel: action.channel },
-            }),
-          )
+          sendJson(socket, {
+            type: 'join',
+            payload: { channel: action.channel },
+          })
           break
         }
 
@@ -41,48 +39,17 @@ socket.on('open', async () => {
     console.log(`Error: ${reply.payload?.message ?? 'Unknown error'}`)
   }
 
-  socket.on('message', data => {
-    const raw = data.toString()
-    const msg = safeJsonParse(raw)
-    if (!msg) return
-
+  onJsonMessage(socket, msg => {
     if (msg.type === 'message')
       console.log(`[${msg.payload.from}] ${msg.payload.text}`)
     if (msg.type === 'error') console.log(`Error: ${msg.payload.message}`)
   })
 })
 
-function safeJsonParse(text: string): any | null {
-  try {
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
-}
-
-function onceMessage(
-  socket: WebSocket,
-  predicate: (msg: any) => boolean,
-): Promise<any> {
-  return new Promise(resolve => {
-    const onMessage = (data: unknown) => {
-      const raw = typeof data === 'string' ? data : (data as Buffer).toString()
-      const msg = safeJsonParse(raw)
-      if (!msg) return
-      if (!predicate(msg)) return
-
-      socket.off('message', onMessage)
-      resolve(msg)
-    }
-
-    socket.on('message', onMessage)
-  })
-}
-
 async function checkNicknameAvailable(socket: WebSocket, nickname: string) {
-  socket.send(JSON.stringify({ type: 'check_nick', payload: { nickname } }))
+  sendJson(socket, { type: 'check_nick', payload: { nickname } })
 
-  const reply = await onceMessage(
+  const reply = await onceJsonMessage(
     socket,
     msg => msg.type === 'nick_check' && msg.payload?.nickname === nickname,
   )
@@ -112,6 +79,9 @@ async function getNickname(socket: WebSocket) {
 }
 
 async function setNicknameAndGetMenu(socket: WebSocket, nickname: string) {
-  socket.send(JSON.stringify({ type: 'set_nick', payload: { nickname } }))
-  return onceMessage(socket, msg => msg.type === 'menu' || msg.type === 'error')
+  sendJson(socket, { type: 'set_nick', payload: { nickname } })
+  return onceJsonMessage(
+    socket,
+    msg => msg.type === 'menu' || msg.type === 'error',
+  )
 }

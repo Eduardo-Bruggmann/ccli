@@ -1,4 +1,6 @@
 import { select, Separator } from '@inquirer/prompts'
+import { asciiArt, NO_PREFIX_THEME } from './uiTheme'
+import { clearScreen } from './utils'
 
 type ChoiceArray = Array<
   | { name: string; value: MenuSelection; disabled?: boolean }
@@ -13,45 +15,51 @@ export async function showMenu(
   users: string[],
   channels: string[],
 ): Promise<MenuAction> {
-  while (true) {
-    renderMenuScreen(users)
+  return runMenu(users, channels)
+}
 
-    const choices: ChoiceArray = []
+async function runMenu(
+  users: string[],
+  channels: string[],
+): Promise<MenuAction> {
+  renderMenuScreen(users)
 
-    if (channels.length === 0) {
-      // TODO
-      console.log('I need to handle the case of no channels available yet')
-    }
+  const selection = await select<MenuSelection>({
+    message: 'ACTIONS',
+    choices: buildChoices(channels),
+    theme: NO_PREFIX_THEME,
+  })
 
-    choices.push(new Separator('\n----- Join a Channel -----'))
-
-    for (const channel of channels) {
-      choices.push({
-        name: `#${channel}`,
-        value: { type: 'join', channel },
-      })
-    }
-
-    choices.push(new Separator('\n----- Options -----'))
-    choices.push({ name: 'Commands', value: { type: 'commands' } })
-    choices.push({ name: 'Exit', value: { type: 'exit' } })
-
-    const selection = await select<MenuSelection>({
-      message: 'ACTIONS',
-      choices,
-    })
-
-    if (selection.type === 'commands') {
-      await showCommandsScreen()
-      continue
-    }
-
-    return selection
+  if (selection.type === 'commands') {
+    await showCommandsScreen()
+    return runMenu(users, channels)
   }
+
+  return selection
+}
+
+function buildChoices(channels: string[]): ChoiceArray {
+  const choices: ChoiceArray = []
+
+  choices.push(new Separator('\n----- Join a Channel -----'))
+
+  for (const channel of channels) {
+    choices.push({
+      name: `#${channel}`,
+      value: { type: 'join', channel },
+    })
+  }
+
+  choices.push(new Separator('\n----- Options -----'))
+  choices.push({ name: 'Commands', value: { type: 'commands' } })
+  choices.push({ name: 'Exit', value: { type: 'exit' } })
+
+  return choices
 }
 
 function renderMenuScreen(users: string[]) {
-  console.clear()
+  clearScreen()
+  console.log(asciiArt)
   console.log('====== MENU ======')
   console.log('')
 
@@ -59,14 +67,15 @@ function renderMenuScreen(users: string[]) {
 }
 
 async function showCommandsScreen() {
-  console.clear()
+  clearScreen()
   console.log('====== COMMANDS ======')
   console.log('Here are the commands (fill this list later).')
   console.log('')
 
   await select({
-    message: 'Back',
+    message: '',
     choices: [{ name: 'Return to menu', value: true }],
+    theme: NO_PREFIX_THEME,
   })
 }
 
@@ -79,6 +88,7 @@ function printList(
 
   if (items.length === 0) {
     console.log('  (none)')
+    console.log('')
     return
   }
 
