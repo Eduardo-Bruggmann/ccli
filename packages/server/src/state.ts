@@ -83,6 +83,8 @@ export class State {
     if (this.clients.size === 0) {
       this.channels.get('general')?.clearHistory()
     }
+
+    this.cleanupAllEmptyChannels()
   }
 
   getClient(nickname: string): Client | undefined {
@@ -180,6 +182,14 @@ export class State {
       channel.name !== 'general'
     ) {
       this.channels.delete(channel.name)
+    }
+  }
+
+  private cleanupAllEmptyChannels() {
+    for (const [name, channel] of this.channels) {
+      if (name !== 'general' && channel.listClients().length === 0) {
+        this.channels.delete(name)
+      }
     }
   }
 }
