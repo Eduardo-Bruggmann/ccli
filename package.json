@@ -1,6 +1,6 @@
 {
-  "name": "ccli",
-  "private": true,
+  "name": "@bruggmann._/ccli",
+  "private": false,
   "version": "1.0.0",
   "description": "Chat Command Line Interface using WebSockets (TypeScript)",
   "bin": {
