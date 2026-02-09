@@ -1,3 +1,4 @@
 import { startServer } from './server'
 
-startServer()
+const port = Number(process.env.PORT) || 8080
+startServer(port)

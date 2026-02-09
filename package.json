@@ -5,6 +5,8 @@
   "description": "Chat Command Line Interface using WebSockets (TypeScript)",
   "main": "index.js",
   "scripts": {
+    "build": "tsc --project tsconfig.build.json && tsc-alias --project tsconfig.build.json",
+    "start": "node dist/packages/server/src/index.js",
     "server": "nodemon --watch packages/server --exec \"ts-node -r tsconfig-paths/register --project tsconfig.json\" packages/server/src/index.ts",
     "client": "ts-node -r tsconfig-paths/register --project packages/client/tsconfig.json packages/client/src/index.ts"
   },
@@ -27,6 +29,7 @@
     "@types/ws": "^8.18.1",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
+    "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   }
