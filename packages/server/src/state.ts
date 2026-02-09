@@ -52,6 +52,10 @@ export class Channel {
   getHistory(): ChannelMessage[] {
     return [...this.history]
   }
+
+  clearHistory() {
+    this.history.length = 0
+  }
 }
 
 export class State {
@@ -75,6 +79,10 @@ export class State {
     }
 
     this.clients.delete(client.nickname)
+
+    if (this.clients.size === 0) {
+      this.channels.get('general')?.clearHistory()
+    }
   }
 
   getClient(nickname: string): Client | undefined {

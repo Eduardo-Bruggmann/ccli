@@ -1,8 +1,11 @@
 import { ServerMessage, ServerMessageSchema } from '@shared/schemas'
 import type { RawData } from 'ws'
 import { WebSocket } from 'ws'
+import dotenv from 'dotenv'
 
-export const socket = new WebSocket('ws://localhost:8080')
+dotenv.config()
+
+export const socket = new WebSocket(process.env.SERVER_URL!)
 
 export function sendJson(socket: WebSocket, msg: unknown) {
   socket.send(JSON.stringify(msg))

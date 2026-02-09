@@ -13,5 +13,9 @@
     },
     "rootDir": "."
   },
-  "include": ["packages/server/src", "packages/shared/src"]
+  "include": [
+    "packages/client/src",
+    "packages/server/src",
+    "packages/shared/src"
+  ]
 }
