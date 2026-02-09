@@ -1,13 +1,64 @@
-# ccli
+# ccli — Chat Command Line Interface
 
-ccli (Chat Command Line Interface) is a terminal-based chat system built with TypeScript, utilizing WebSockets for real-time communication. This project allows users to interact through the command line, providing a simple and efficient way to chat directly from the terminal.
+A terminal-based real-time chat built with TypeScript and WebSockets.
 
 ## Features
 
-- Real-time chat via WebSockets
-- Command line interface
-- Built with TypeScript
+- Real-time messaging via WebSockets
+- Multiple channels with persistent message history
+- Live nickname changes
+- Interactive menu with ASCII art
+- Input validation with Zod
+
+## Project Structure
+
+```
+packages/
+  shared/   → Schemas, types, and utilities shared between client and server
+  server/   → WebSocket server (state management, command handling)
+  client/   → Terminal client (UI, menus, chat prompt)
+```
 
 ## Getting Started
 
-Instructions for installation and usage will be added soon.
+### Prerequisites
+
+- Node.js
+- pnpm (or npm, yarn, etc.)
+
+### Install
+
+```bash
+pnpm install
+```
+
+### Run
+
+Start the server:
+
+```bash
+pnpm server
+```
+
+In another terminal, start one or more clients:
+
+```bash
+pnpm client
+```
+
+## Chat Commands
+
+| Command            | Description                                      |
+| ------------------ | ------------------------------------------------ |
+| `/home`            | Leave the current channel and return to the menu |
+| `/join <channel>`  | Join another channel (creates it if needed)      |
+| `/nick <nickname>` | Change your nickname                             |
+| `/exit`            | Exit the program                                 |
+
+## Tech Stack
+
+- **TypeScript** — Language
+- **ws** — WebSocket server and client
+- **Zod** — Schema validation
+- **@inquirer/prompts** — Interactive terminal prompts
+- **nodemon** — Dev server auto-restart

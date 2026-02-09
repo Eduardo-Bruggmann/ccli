@@ -2,27 +2,11 @@ import type { WebSocket } from 'ws'
 
 export class Client {
   private readonly socket: WebSocket
-  private _nickname: string | null = null
-  private _currentChannel: string | null = null
+  nickname: string | null = null
+  currentChannel: string | null = null
 
   constructor(socket: WebSocket) {
     this.socket = socket
-  }
-
-  get nickname(): string | null {
-    return this._nickname
-  }
-
-  set nickname(nick: string | null) {
-    this._nickname = nick
-  }
-
-  get currentChannel(): string | null {
-    return this._currentChannel
-  }
-
-  _setChannel(channel: string | null) {
-    this._currentChannel = channel
   }
 
   send(data: unknown) {
@@ -36,18 +20,11 @@ export type ChannelMessage = {
 }
 
 export class Channel {
-  private readonly _name: string
-  private readonly clients: Set<string> = new Set()
+  private readonly clients = new Set<string>()
   private readonly history: ChannelMessage[] = []
   private readonly MAX_HISTORY = 150
 
-  constructor(name: string) {
-    this._name = name
-  }
-
-  get name(): string {
-    return this._name
-  }
+  constructor(readonly name: string) {}
 
   hasClient(nickname: string): boolean {
     return this.clients.has(nickname)
@@ -67,23 +44,19 @@ export class Channel {
 
   addMessage(message: ChannelMessage) {
     this.history.push(message)
-    this.trimHistory()
+    if (this.history.length > this.MAX_HISTORY) {
+      this.history.shift()
+    }
   }
 
   getHistory(): ChannelMessage[] {
     return [...this.history]
   }
-
-  private trimHistory() {
-    while (this.history.length > this.MAX_HISTORY) {
-      this.history.shift()
-    }
-  }
 }
 
 export class State {
-  private readonly clients: Map<string, Client> = new Map()
-  private readonly channels: Map<string, Channel> = new Map()
+  private readonly clients = new Map<string, Client>()
+  private readonly channels = new Map<string, Channel>()
 
   addClient(client: Client) {
     if (!client.nickname) return
@@ -95,7 +68,10 @@ export class State {
 
     if (client.currentChannel) {
       const channel = this.channels.get(client.currentChannel)
-      channel?.removeClient(client.nickname)
+      if (channel) {
+        channel.removeClient(client.nickname)
+        this.cleanupEmptyChannel(channel)
+      }
     }
 
     this.clients.delete(client.nickname)
@@ -111,12 +87,10 @@ export class State {
 
   getOrCreateChannel(name: string): Channel {
     let channel = this.channels.get(name)
-
     if (!channel) {
       channel = new Channel(name)
       this.channels.set(name, channel)
     }
-
     return channel
   }
 
@@ -134,22 +108,70 @@ export class State {
 
     const channel = this.getOrCreateChannel(channelName)
     channel.addClient(client.nickname)
-    client._setChannel(channelName)
+
+    client.send({
+      type: 'channel_history',
+      payload: { channel: channel.name, messages: channel.getHistory() },
+    })
+
+    client.currentChannel = channelName
   }
 
-  broadcastToChannel(channelName: string, data: unknown) {
+  leaveChannel(client: Client) {
+    if (!client.nickname || !client.currentChannel) return
+
+    const channel = this.channels.get(client.currentChannel)
+    if (channel) {
+      channel.removeClient(client.nickname)
+      this.cleanupEmptyChannel(channel)
+    }
+
+    client.currentChannel = null
+  }
+
+  broadcastToChannel(channelName: string, data: unknown, exceptNick?: string) {
     const channel = this.channels.get(channelName)
     if (!channel) return
 
     for (const nick of channel.listClients()) {
-      const client = this.clients.get(nick)
-      client?.send(data)
+      if (nick !== exceptNick) {
+        this.clients.get(nick)?.send(data)
+      }
     }
   }
 
-  broadcastSystem(data: unknown) {
-    for (const client of this.clients.values()) {
-      client.send(data)
+  changeNickname(client: Client, newNick: string) {
+    const oldNick = client.nickname
+    if (!oldNick) return
+
+    this.clients.delete(oldNick)
+    client.nickname = newNick
+    this.clients.set(newNick, client)
+
+    if (client.currentChannel) {
+      const channel = this.channels.get(client.currentChannel)
+      if (channel) {
+        channel.removeClient(oldNick)
+        channel.addClient(newNick)
+      }
+    }
+  }
+
+  broadcastSystem(data: unknown, exceptNick?: string) {
+    for (const [nick, client] of this.clients.entries()) {
+      if (nick !== exceptNick) {
+        client.send(data)
+      }
+    }
+  }
+
+  private cleanupEmptyChannel(channel: Channel) {
+    if (
+      channel.listClients().length === 0 &&
+      channel.getHistory().length > 1 &&
+      channel.name !== 'general'
+    ) {
+      this.channels.delete(channel.name)
     }
   }
 }

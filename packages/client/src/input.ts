@@ -1,5 +1,6 @@
+import { beginInteractivePrompt, endInteractivePrompt } from './ui'
 import { input } from '@inquirer/prompts'
-import { NO_PREFIX_THEME } from './uiTheme'
+import { promptTheme } from './render'
 
 export async function prompt(
   text: string,
@@ -7,11 +8,16 @@ export async function prompt(
     validate?: (value: string) => boolean | string | Promise<boolean | string>
   },
 ): Promise<string> {
-  return (
-    await input({
-      message: text,
-      validate: options?.validate,
-      theme: NO_PREFIX_THEME,
-    })
-  ).trim()
+  beginInteractivePrompt()
+  try {
+    return (
+      await input({
+        message: text,
+        validate: options?.validate,
+        theme: promptTheme,
+      })
+    ).trim()
+  } finally {
+    endInteractivePrompt()
+  }
 }

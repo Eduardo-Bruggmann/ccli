@@ -1,66 +1,132 @@
-import { ClientMessage, ClientMessageSchema } from '@shared/protocol'
-import { zodErrorMessage } from './utils'
+import { ClientMessage, ClientMessageSchema } from '@shared/schemas'
+import { zodErrorMessage } from '@shared/utils'
 import { Client, state } from './state'
 
 export function handleMessage(client: Client, text: string) {
-  const msg = validateMessage(client, text)
-
+  const msg = parseClientMessage(client, text)
   if (!msg) return
 
   switch (msg.type) {
     case 'check_nick': {
-      const nick = msg.payload.nickname
-      const taken = state.listUsers().includes(nick)
-
+      const available = !state.listUsers().includes(msg.payload.nickname)
       client.send({
         type: 'nick_check',
+        payload: { nickname: msg.payload.nickname, available },
+      })
+      break
+    }
+
+    case 'set_nick': {
+      const nick = msg.payload.nickname
+      const oldNick = client.nickname
+
+      if (state.listUsers().includes(nick) && oldNick !== nick) {
+        sendError(client, 'Nickname already taken')
+        return
+      }
+
+      if (oldNick) {
+        state.changeNickname(client, nick)
+
+        const nickChangedMsg = {
+          type: 'nick_changed',
+          payload: { oldNick, newNick: nick },
+        }
+
+        client.send(nickChangedMsg)
+
+        if (client.currentChannel) {
+          state.broadcastToChannel(client.currentChannel, nickChangedMsg, nick)
+        }
+      } else {
+        client.nickname = nick
+        state.addClient(client)
+
+        state.broadcastSystem(
+          {
+            type: 'system',
+            payload: { message: `${nick} connected` },
+          },
+          nick,
+        )
+      }
+
+      sendMenu(client)
+      break
+    }
+
+    case 'join': {
+      const oldChannel = client.currentChannel
+
+      if (oldChannel) {
+        state.broadcastToChannel(oldChannel, {
+          type: 'system',
+          payload: { message: `${client.nickname} left #${oldChannel}` },
+        })
+      }
+
+      state.joinChannel(client, msg.payload.channel)
+
+      state.broadcastToChannel(msg.payload.channel, {
+        type: 'system',
         payload: {
-          nickname: nick,
-          available: !taken,
+          message: `${client.nickname} joined #${msg.payload.channel}`,
         },
       })
       break
     }
 
-    case 'set_nick':
-      const nick = msg.payload.nickname
-
-      const taken = state.listUsers().includes(nick)
-      if (taken) {
-        client.send({
-          type: 'error',
-          payload: { message: 'Nickname already taken' },
-        })
+    case 'leave_channel': {
+      if (!client.nickname) {
+        sendError(client, 'Set your nickname first')
         return
       }
 
-      client.nickname = nick
-      state.addClient(client)
+      const oldChannel = client.currentChannel
+      if (!oldChannel) break
 
-      sendMenu(client)
+      state.leaveChannel(client)
+
+      state.broadcastToChannel(oldChannel, {
+        type: 'system',
+        payload: { message: `${client.nickname} left #${oldChannel}` },
+      })
       break
+    }
 
-    case 'join':
-      if (client.currentChannel) {
-        const channel = state.getOrCreateChannel(client.currentChannel)
-        channel.removeClient(client.nickname!)
+    case 'message': {
+      if (!client.nickname) {
+        sendError(client, 'Set your nickname first')
+        return
       }
 
-      state.joinChannel(client, msg.payload.channel)
-      console.log(client.nickname + ' joined channel ' + client.currentChannel)
-      break
+      if (!client.currentChannel) {
+        sendError(client, 'Join a channel first')
+        return
+      }
 
-    case 'message':
-      client.send({
-        type: 'message',
-        payload: { text: msg.payload.text },
-      })
-      console.log(`Received message`)
+      state
+        .getOrCreateChannel(client.currentChannel)
+        .addMessage({ from: client.nickname, message: msg.payload.text })
+
+      state.broadcastToChannel(
+        client.currentChannel,
+        {
+          type: 'message',
+          payload: { from: client.nickname, text: msg.payload.text },
+        },
+        client.nickname,
+      )
+      break
+    }
+
+    case 'menu_request':
+      sendMenu(client)
       break
   }
 }
 
-function validateMessage(
+function parseClientMessage(
   client: Client,
   text: string,
 ): ClientMessage | undefined {
@@ -69,41 +135,35 @@ function validateMessage(
   try {
     parsed = JSON.parse(text)
   } catch {
-    const err = {
-      type: 'error',
-      payload: { message: 'Invalid JSON received' },
-    }
-
-    client.send(err)
+    sendError(client, 'Invalid JSON received')
     return
   }
 
   const result = ClientMessageSchema.safeParse(parsed)
-
   if (!result.success) {
-    const err = {
-      type: 'error',
-      payload: { message: zodErrorMessage(result.error) },
-    }
-
-    client.send(err)
+    sendError(client, zodErrorMessage(result.error))
     return
   }
 
   return result.data
 }
 
-function sendMenu(client: Client) {
-  const users = state.listUsers(client.nickname!)
+function sendError(client: Client, message: string) {
+  client.send({ type: 'error', payload: { message } })
+}
 
-  const channels = state.listChannels()
+function sendMenu(client: Client) {
+  if (!client.nickname) {
+    sendError(client, 'Set your nickname first')
+    return
+  }
 
   client.send({
     type: 'menu',
     payload: {
-      self: client.nickname!,
-      users,
-      channels,
+      self: client.nickname,
+      users: state.listUsers(client.nickname),
+      channels: state.listChannels(),
     },
   })
 }

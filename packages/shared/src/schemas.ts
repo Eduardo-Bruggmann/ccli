@@ -46,11 +46,21 @@ const ChatMessageSchema = z.object({
   }),
 })
 
+const MenuRequestSchema = z.object({
+  type: z.literal('menu_request'),
+})
+
+const LeaveChannelSchema = z.object({
+  type: z.literal('leave_channel'),
+})
+
 export const ClientMessageSchema = z.union([
   SetNickMessageSchema,
   CheckNickMessageSchema,
   JoinMessageSchema,
   ChatMessageSchema,
+  MenuRequestSchema,
+  LeaveChannelSchema,
 ])
 
 const ServerChatMessageSchema = z.object({
@@ -117,6 +127,26 @@ const ServerMenuSchema = z.object({
   }),
 })
 
+const ServerChannelHistorySchema = z.object({
+  type: z.literal('channel_history'),
+  payload: z.object({
+    channel: z.string(),
+    messages: z.array(
+      z.object({
+        from: z.string(),
+        message: z.string(),
+      }),
+    ),
+  }),
+})
+
+const ServerSystemMessageSchema = z.object({
+  type: z.literal('system'),
+  payload: z.object({
+    message: z.string(),
+  }),
+})
+
 export const ServerMessageSchema = z.union([
   ServerChatMessageSchema,
   ServerErrorMessageSchema,
@@ -124,6 +154,11 @@ export const ServerMessageSchema = z.union([
   ServerUserJoinedSchema,
   ServerUserLeftSchema,
   ServerNickChangedSchema,
-  ServerMenuSchema,
   ServerNickCheckSchema,
+  ServerMenuSchema,
+  ServerChannelHistorySchema,
+  ServerSystemMessageSchema,
 ])
+
+export type ClientMessage = z.infer<typeof ClientMessageSchema>
+export type ServerMessage = z.infer<typeof ServerMessageSchema>

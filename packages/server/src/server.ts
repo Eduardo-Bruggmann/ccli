@@ -13,7 +13,18 @@ export function startServer(port: number = 8080) {
     })
 
     socket.on('close', () => {
-      console.log('Client disconnected')
+      const nickname = client.nickname
+
+      if (nickname) {
+        state.broadcastSystem(
+          {
+            type: 'system',
+            payload: { message: `${nickname} disconnected` },
+          },
+          nickname,
+        )
+      }
+
       state.removeClient(client)
     })
   })
