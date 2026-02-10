@@ -2,6 +2,23 @@
 
 A terminal-based real-time chat built with TypeScript and WebSockets.
 
+## Quick Start (via npm)
+
+Install and run the client directly from your terminal:
+
+```bash
+npm install -g "@bruggmann._/ccli"
+ccli
+```
+
+Or run without installing:
+
+```bash
+npx "@bruggmann._/ccli"
+```
+
+> **Note:** On PowerShell, wrap the package name in quotes as shown above.
+
 ## Features
 
 - Real-time messaging via WebSockets
