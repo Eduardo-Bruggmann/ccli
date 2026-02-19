@@ -5,7 +5,9 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-export const socket = new WebSocket(process.env.SERVER_URL!)
+export const socket = new WebSocket(
+  process.env.SERVER_URL ?? 'wss://ccli-tpio.onrender.com',
+)
 
 export function sendJson(socket: WebSocket, msg: unknown) {
   socket.send(JSON.stringify(msg))
