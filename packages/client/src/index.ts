@@ -25,10 +25,54 @@ function isMenuMessage(msg: ServerMessage): msg is MenuMessage {
   return msg.type === 'menu'
 }
 
+let shuttingDown = false
+
+function isPromptAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+
+  const maybeError = err as { name?: string; message?: string }
+  return (
+    maybeError.name === 'ExitPromptError' ||
+    maybeError.message?.includes('User force closed the prompt') === true
+  )
+}
+
+function gracefulShutdown(code = 0) {
+  if (shuttingDown) return
+  shuttingDown = true
+
+  endInteractivePrompt()
+
+  if (
+    socket.readyState === socket.OPEN ||
+    socket.readyState === socket.CONNECTING
+  ) {
+    socket.once('close', () => process.exit(code))
+    socket.close()
+
+    setTimeout(() => {
+      process.exit(code)
+    }, 250)
+
+    return
+  }
+
+  process.exit(code)
+}
+
+process.on('SIGINT', () => {
+  gracefulShutdown(0)
+})
+
 socket.on('open', () => {
   main().catch(err => {
+    if (isPromptAbortError(err)) {
+      gracefulShutdown(0)
+      return
+    }
+
     console.error(err)
-    process.exit(1)
+    gracefulShutdown(1)
   })
 })
 
@@ -42,7 +86,7 @@ async function main() {
   while (true) {
     const action = await showMenu(menu.payload.users, menu.payload.channels)
 
-    if (action.type === 'exit') exitApp()
+    if (action.type === 'exit') return exitApp()
 
     sendJson(socket, { type: 'join', payload: { channel: action.channel } })
     clearScreen()
@@ -50,7 +94,7 @@ async function main() {
 
     const reason = await chatLoop(nickname)
 
-    if (reason === 'exit') exitApp()
+    if (reason === 'exit') return exitApp()
 
     sendJson(socket, { type: 'menu_request' })
     menu = await waitForServerMessage(socket, isMenuMessage)
@@ -87,9 +131,8 @@ function setupMessageHandler() {
   })
 }
 
-function exitApp(): never {
-  socket.close()
-  process.exit(0)
+function exitApp(): void {
+  gracefulShutdown(0)
 }
 
 async function getNickname(): Promise<string> {
