@@ -13,6 +13,14 @@ import {
 } from './render'
 import { select, Separator } from '@inquirer/prompts'
 
+let pendingUsers: string[] | null = null
+let menuAbort: AbortController | null = null
+
+export function updateMenuUsers(users: string[]) {
+  pendingUsers = users
+  menuAbort?.abort()
+}
+
 type MenuSelection = MenuAction | { type: 'commands' }
 
 export type MenuAction = { type: 'join'; channel: string } | { type: 'exit' }
@@ -28,27 +36,72 @@ function header(title: string) {
 }
 
 export async function showMenu(
-  users: string[],
+  initialUsers: string[],
   channels: string[],
 ): Promise<MenuAction> {
   setRealtimePrinter(null)
+  let users = initialUsers
+  pendingUsers = null
+  let skipAnimation = false
 
   while (true) {
+    if (pendingUsers) {
+      users = pendingUsers
+      pendingUsers = null
+    }
+
+    menuAbort = new AbortController()
+
     clearScreen()
     console.log(asciiArt)
     console.log()
-    await sleep(400)
+
+    if (!skipAnimation) {
+      await sleep(400)
+      if (pendingUsers) {
+        skipAnimation = true
+        continue
+      }
+    }
+
     header('M E N U')
-    await sleep(100)
+
+    if (!skipAnimation) {
+      await sleep(100)
+      if (pendingUsers) {
+        skipAnimation = true
+        continue
+      }
+    }
+
     console.log()
     printUsers(users)
 
     beginInteractivePrompt()
-    const selection = await select<MenuSelection>({
-      message: '',
-      choices: buildChoices(channels),
-      theme: promptTheme,
-    }).finally(() => endInteractivePrompt())
+
+    let selection: MenuSelection
+    try {
+      selection = await select<MenuSelection>(
+        {
+          message: '',
+          choices: buildChoices(channels),
+          theme: promptTheme,
+        },
+        { signal: menuAbort.signal },
+      )
+    } catch {
+      endInteractivePrompt()
+      menuAbort = null
+      if (pendingUsers) {
+        skipAnimation = true
+        continue
+      }
+      throw new Error('Menu aborted')
+    }
+
+    endInteractivePrompt()
+    menuAbort = null
+    skipAnimation = false
 
     if (selection.type !== 'commands') return selection
 

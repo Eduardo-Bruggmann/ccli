@@ -65,6 +65,7 @@ export class State {
   addClient(client: Client) {
     if (!client.nickname) return
     this.clients.set(client.nickname, client)
+    this.broadcastUserList()
   }
 
   removeClient(client: Client) {
@@ -79,6 +80,7 @@ export class State {
     }
 
     this.clients.delete(client.nickname)
+    this.broadcastUserList()
 
     if (this.clients.size === 0) {
       this.channels.get('general')?.clearHistory()
@@ -164,6 +166,17 @@ export class State {
         channel.removeClient(oldNick)
         channel.addClient(newNick)
       }
+    }
+
+    this.broadcastUserList()
+  }
+
+  broadcastUserList() {
+    for (const [nick, client] of this.clients.entries()) {
+      client.send({
+        type: 'user_list',
+        payload: { users: this.listUsers(nick) },
+      })
     }
   }
 

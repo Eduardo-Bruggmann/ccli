@@ -15,7 +15,7 @@ import { NicknameSchema, type ServerMessage } from '@shared/schemas'
 import { zodErrorMessage } from '@shared/utils'
 import { createChatPrompt } from './chatPrompt'
 import { clearScreen, c } from './render'
-import { showMenu } from './menu'
+import { showMenu, updateMenuUsers } from './menu'
 import { prompt } from './input'
 import { colorize, assignColor, resetColors } from './colors'
 
@@ -33,6 +33,8 @@ function isPromptAbortError(err: unknown): boolean {
   const maybeError = err as { name?: string; message?: string }
   return (
     maybeError.name === 'ExitPromptError' ||
+    maybeError.name === 'AbortPromptError' ||
+    maybeError.message === 'Menu aborted' ||
     maybeError.message?.includes('User force closed the prompt') === true
   )
 }
@@ -123,6 +125,9 @@ function setupMessageHandler() {
         break
       case 'system':
         printLine(c.cyan(`* ${msg.payload.message} *`))
+        break
+      case 'user_list':
+        updateMenuUsers(msg.payload.users)
         break
       case 'error':
         printLine(`Error: ${msg.payload.message}`)

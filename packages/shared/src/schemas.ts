@@ -147,6 +147,13 @@ const ServerSystemMessageSchema = z.object({
   }),
 })
 
+const ServerUserListSchema = z.object({
+  type: z.literal('user_list'),
+  payload: z.object({
+    users: z.array(z.string()),
+  }),
+})
+
 export const ServerMessageSchema = z.union([
   ServerChatMessageSchema,
   ServerErrorMessageSchema,
@@ -158,6 +165,7 @@ export const ServerMessageSchema = z.union([
   ServerMenuSchema,
   ServerChannelHistorySchema,
   ServerSystemMessageSchema,
+  ServerUserListSchema,
 ])
 
 export type ClientMessage = z.infer<typeof ClientMessageSchema>
